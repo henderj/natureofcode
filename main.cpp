@@ -1,18 +1,25 @@
 #include <iostream>
+#include <random>
+#include <ctime>
+#include <cstdlib>
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
 
 #include "Primitives.h"
 #include "GVector.h"
-#include "GRect.h"
+#include "config.h"
+#include "Mover.h"
 
-const int SCREEN_WIDTH = 640;
-const int SCREEN_HEIGHT = 360;
 GVector mousePos;
 
 void PlayGame(SDL_Renderer *rend);
+void setup();
 void draw(SDL_Renderer *rend);
+float randomFloat(float a, float b)
+{
+    return a + static_cast<float>(std::rand()) / (static_cast<float>(RAND_MAX / (b - a)));
+}
 
 int main()
 {
@@ -49,6 +56,8 @@ void PlayGame(SDL_Renderer *rend)
     int deltaTime = 0;
     int mouseX, mouseY;
 
+    setup();
+
     while (!close)
     {
         deltaTime = SDL_GetTicks() - lastFrameTimeStamp;
@@ -83,26 +92,64 @@ void PlayGame(SDL_Renderer *rend)
     }
 }
 
-GVector location;
-GVector dif;
-GVector center = GVector(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2);
+class Liquid
+{
+private:
+public:
+    float x, y, w, h;
+    float c;
+    Liquid(float _x, float _y, float _w, float _h, float _c);
+    ~Liquid();
+    void display(SDL_Renderer *rend);
+};
+
+Liquid::Liquid(float _x, float _y, float _w, float _h, float _c)
+    : x(_x), y(_y), w(_w), h(_h), c(_c)
+{
+}
+Liquid::~Liquid() {}
+void Liquid::display(SDL_Renderer *rend)
+{
+    SDL_FRect rect;
+    rect.x = x;
+    rect.y = y;
+    rect.w = w;
+    rect.h = h;
+    SDL_RenderDrawRectF(rend, &rect);
+}
+
+Mover movers[20];
+GVector wind = GVector(0.01, 0);
+GVector gravity = GVector(0, 0.1);
+float c = 0.01;
+
+Liquid liquid = Liquid(0, SCREEN_HEIGHT / 2, SCREEN_WIDTH, SCREEN_HEIGHT / 2, 0.1);
+
+void setup()
+{
+    std::srand((unsigned)std::time(0));
+
+    for (auto i = 0; i < sizeof(movers) / sizeof(Mover); i++)
+    {
+        movers[i] = Mover(randomFloat(0.1, 5), 0, 0);
+    }
+}
 
 void draw(SDL_Renderer *rend)
 {
+    for (auto i = 0; i < sizeof(movers) / sizeof(Mover); i++)
+    {
+        GVector friction = GVector(movers[i].velocity);
+        friction.mult(-1);
+        friction.normalize();
+        friction.mult(c);
 
-    dif = mousePos - center;
-    dif.normalize();
-    dif.mult(50);
-    location = center + dif;
-    SDL_SetRenderDrawColor(rend, 81, 148, 219, 255);
-    // SDL_RenderFillCircle(rend, location.x, location.y, 16);
-    // GRect rect = GRect(0, 0, dif.mag(), 10);
-    // SDL_FRect frect = rect;
-    SDL_FRect frect;
-    frect.x = 0;
-    frect.y = 0;
-    frect.w = dif.mag();
-    frect.h = 10;
-    SDL_RenderFillRectF(rend, &frect);
-    SDL_RenderDrawLineF(rend, center.x, center.y, location.x, location.y);
+        movers[i].applyForce(wind);
+        movers[i].applyForce(gravity, true);
+        movers[i].applyForce(friction);
+
+        movers[i].update();
+        movers[i].checkEdges();
+        movers[i].display(rend);
+    }
 }
