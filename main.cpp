@@ -167,8 +167,6 @@ void draw(SDL_Renderer *rend)
             // movers[i].applyForce(force);
             force = movers[i].collision(movers[j]);
             movers[i].applyForce(force);
-            force = movers[i].collision(movers[j]);
-            movers[i].applyForce(force);
             movers[i].drag(l);
         }
         GVector edgeForce = movers[i].checkEdgesForce();
