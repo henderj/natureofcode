@@ -114,12 +114,12 @@ public:
     GVector attract(Mover &m);
 };
 
-Attractor::Attractor() : mass(20), location(GVector(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2)), G(0.4) {}
+Attractor::Attractor() : mass(500), location(GVector(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2)), G(0.4) {}
 Attractor::~Attractor() {}
 void Attractor::display(SDL_Renderer *rend)
 {
     SDL_SetRenderDrawColor(rend, 169, 90, 191, 255);
-    SDL_RenderFillCircle(rend, location.x, location.y, mass * 2);
+    SDL_RenderFillCircle(rend, location.x, location.y, 25);
 }
 GVector Attractor::attract(Mover &m)
 {
@@ -132,27 +132,31 @@ GVector Attractor::attract(Mover &m)
     return force;
 }
 
-Mover movers[10];
+Mover movers[30];
 // GVector wind = GVector(0.01, 0);
 // GVector gravity = GVector(0, 0.1);
 // float c = 0.01;
 
 // Mover m;
 Attractor a;
+Liquid l = Liquid(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, 0.001);
+bool attract;
 
 void setup()
 {
     std::srand((unsigned)std::time(0));
-
+    attract = randomFloat(0, 1) > 0.5;
     for (auto i = 0; i < sizeof(movers) / sizeof(Mover); i++)
     {
-        movers[i] = Mover(randomFloat(0.1, 2), randomFloat(0, SCREEN_WIDTH), randomFloat(0, SCREEN_HEIGHT));
+        movers[i] = Mover(randomFloat(1, 10), randomFloat(0, SCREEN_WIDTH), randomFloat(0, SCREEN_HEIGHT));
         // movers[i].velocity = GVector(1, 0);
     }
 }
 
 void draw(SDL_Renderer *rend)
 {
+    a.location = mousePos;
+    // a.display(rend);
     for (auto i = 0; i < sizeof(movers) / sizeof(Mover); i++)
     {
         for (auto j = 0; j < sizeof(movers) / sizeof(Mover); j++)
@@ -160,8 +164,18 @@ void draw(SDL_Renderer *rend)
             if (i == j)
                 continue;
             GVector force = movers[j].attract(movers[i]);
+            // movers[i].applyForce(force);
+            force = movers[i].collision(movers[j]);
             movers[i].applyForce(force);
+            movers[i].drag(l);
         }
+        GVector edgeForce = movers[i].checkEdgesForce();
+        movers[i].applyForce(edgeForce);
+
+        GVector mouseForce = a.attract(movers[i]);
+        if (!attract)
+            mouseForce.mult(-1);
+        movers[i].applyForce(mouseForce);
 
         movers[i].update();
         movers[i].display(rend);
