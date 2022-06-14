@@ -6,10 +6,11 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
 
+#include "config.h"
 #include "Primitives.h"
 #include "GVector.h"
-#include "config.h"
 #include "Mover.h"
+#include "Liquid.h"
 
 GVector mousePos;
 
@@ -19,6 +20,14 @@ void draw(SDL_Renderer *rend);
 float randomFloat(float a, float b)
 {
     return a + static_cast<float>(std::rand()) / (static_cast<float>(RAND_MAX / (b - a)));
+}
+float constrain(float f, float min, float max)
+{
+    if (f < min)
+        f = min;
+    else if (f > max)
+        f = max;
+    return f;
 }
 
 int main()
@@ -92,38 +101,44 @@ void PlayGame(SDL_Renderer *rend)
     }
 }
 
-class Liquid
+class Attractor
 {
 private:
 public:
-    float x, y, w, h;
-    float c;
-    Liquid(float _x, float _y, float _w, float _h, float _c);
-    ~Liquid();
+    float mass;
+    GVector location;
+    float G;
+    Attractor();
+    ~Attractor();
     void display(SDL_Renderer *rend);
+    GVector attract(Mover &m);
 };
 
-Liquid::Liquid(float _x, float _y, float _w, float _h, float _c)
-    : x(_x), y(_y), w(_w), h(_h), c(_c)
+Attractor::Attractor() : mass(20), location(GVector(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2)), G(0.4) {}
+Attractor::~Attractor() {}
+void Attractor::display(SDL_Renderer *rend)
 {
+    SDL_SetRenderDrawColor(rend, 169, 90, 191, 255);
+    SDL_RenderFillCircle(rend, location.x, location.y, mass * 2);
 }
-Liquid::~Liquid() {}
-void Liquid::display(SDL_Renderer *rend)
+GVector Attractor::attract(Mover &m)
 {
-    SDL_FRect rect;
-    rect.x = x;
-    rect.y = y;
-    rect.w = w;
-    rect.h = h;
-    SDL_RenderDrawRectF(rend, &rect);
+    GVector force = location - m.location;
+    float dist = force.mag();
+    dist = constrain(dist, 5, 25);
+    force.normalize();
+    float strength = (G * mass * m.mass) / (dist * dist);
+    force.mult(strength);
+    return force;
 }
 
-Mover movers[20];
-GVector wind = GVector(0.01, 0);
-GVector gravity = GVector(0, 0.1);
-float c = 0.01;
+Mover movers[10];
+// GVector wind = GVector(0.01, 0);
+// GVector gravity = GVector(0, 0.1);
+// float c = 0.01;
 
-Liquid liquid = Liquid(0, SCREEN_HEIGHT / 2, SCREEN_WIDTH, SCREEN_HEIGHT / 2, 0.1);
+// Mover m;
+Attractor a;
 
 void setup()
 {
@@ -131,7 +146,8 @@ void setup()
 
     for (auto i = 0; i < sizeof(movers) / sizeof(Mover); i++)
     {
-        movers[i] = Mover(randomFloat(0.1, 5), 0, 0);
+        movers[i] = Mover(randomFloat(0.1, 2), randomFloat(0, SCREEN_WIDTH), randomFloat(0, SCREEN_HEIGHT));
+        // movers[i].velocity = GVector(1, 0);
     }
 }
 
@@ -139,17 +155,17 @@ void draw(SDL_Renderer *rend)
 {
     for (auto i = 0; i < sizeof(movers) / sizeof(Mover); i++)
     {
-        GVector friction = GVector(movers[i].velocity);
-        friction.mult(-1);
-        friction.normalize();
-        friction.mult(c);
-
-        movers[i].applyForce(wind);
-        movers[i].applyForce(gravity, true);
-        movers[i].applyForce(friction);
+        for (auto j = 0; j < sizeof(movers) / sizeof(Mover); j++)
+        {
+            if (i == j)
+                continue;
+            GVector force = movers[j].attract(movers[i]);
+            movers[i].applyForce(force);
+        }
 
         movers[i].update();
-        movers[i].checkEdges();
         movers[i].display(rend);
     }
+    // m.update();
+    // m.display(rend);
 }

@@ -1,7 +1,8 @@
 #pragma once
 
-#include "GVector.h"
 #include <SDL2/SDL.h>
+#include "GVector.h"
+#include "Liquid.h"
 
 class Mover
 {
@@ -16,4 +17,7 @@ public:
     void update();
     void checkEdges();
     void display(SDL_Renderer *rend);
+    bool isInside(Liquid &l);
+    void drag(Liquid &l);
+    GVector attract(Mover &m);
 };

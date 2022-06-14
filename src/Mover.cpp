@@ -1,9 +1,11 @@
 #include "Mover.h"
 
+#include <SDL2/SDL.h>
+
 #include "config.h"
 #include "GVector.h"
 #include "Primitives.h"
-#include <SDL2/SDL.h>
+#include "Liquid.h"
 
 Mover::Mover()
 {
@@ -53,4 +55,36 @@ void Mover::display(SDL_Renderer *rend)
 {
     SDL_SetRenderDrawColor(rend, 81, 148, 219, 175);
     SDL_RenderFillCircle(rend, location.x, location.y, mass * 16);
+}
+
+bool Mover::isInside(Liquid &l)
+{
+    return location.x > l.x && location.x < l.x + l.w && location.y > l.y && location.y < l.y + l.h;
+}
+
+void Mover::drag(Liquid &l)
+{
+    float speed = velocity.mag();
+    float dragMagnitude = l.c * speed * speed;
+    GVector drag = GVector(velocity);
+    drag.mult(-1);
+    drag.normalize();
+    drag.mult(dragMagnitude);
+
+    applyForce(drag);
+}
+
+GVector Mover::attract(Mover &m)
+{
+    GVector force = location - m.location;
+    float dist = force.mag();
+    if (dist < 5)
+        dist = 5;
+    else if (dist > 25)
+        dist = 25;
+
+    force.normalize();
+    float strength = (0.4 * mass * m.mass) / (dist * dist);
+    force.mult(strength);
+    return force;
 }
